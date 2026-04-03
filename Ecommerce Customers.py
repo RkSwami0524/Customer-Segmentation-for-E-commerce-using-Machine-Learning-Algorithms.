@@ -109,17 +109,41 @@ data = data.drop(['Email', 'Address', 'Avatar'], axis=1)
 
 
 # ## Exploratory Data Analysis (EDA)
+import streamlit as st
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 st.title("Customer Segmentation App")
-st.write("K-Means Clustering on E-commerce Data")
-st.write(data.head())
+
+# Slider (ONLY ONCE)
 k = st.slider("Select number of clusters", 2, 10, 4)
+
+# Apply KMeans
 kmeans = KMeans(n_clusters=k, random_state=42)
+y_kmeans = kmeans.fit_predict(X_scaled)
+
+# Add cluster column
+data['Cluster'] = y_kmeans
+
+# Visualization
+st.subheader("Cluster Visualization")
+
+fig, ax = plt.subplots()
+ax.scatter(data['Time on App'], data['Yearly Amount Spent'],
+           c=data['Cluster'], cmap='viridis')
+
+st.pyplot(fig)
+
+# Cluster Insights
 st.subheader("Cluster Insights")
 cluster_analysis = data.groupby('Cluster').mean()
 st.write(cluster_analysis)
 
-sns.pairplot(data)
-plt.show()
+# Pairplot (fixed)
+st.subheader("Data Relationships")
+pairplot_fig = sns.pairplot(data)
+st.pyplot(pairplot_fig)
 
 # ## Explanation
 # - Shows relationships between features
