@@ -115,6 +115,7 @@ st.write(data.head())
 k = st.slider("Select number of clusters", 2, 10, 4)
 kmeans = KMeans(n_clusters=k, random_state=42)
 st.subheader("Cluster Insights")
+cluster_analysis = data.groupby('Cluster').mean()
 st.write(cluster_analysis)
 
 sns.pairplot(data)
