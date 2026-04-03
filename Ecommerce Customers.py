@@ -100,6 +100,7 @@ print(data.isnull().sum())
 # - Checks missing values
 
 
+
 data = data.drop(['Email', 'Address', 'Avatar'], axis=1)
 
 # ## Explanation
@@ -108,7 +109,13 @@ data = data.drop(['Email', 'Address', 'Avatar'], axis=1)
 
 
 # ## Exploratory Data Analysis (EDA)
-
+st.title("Customer Segmentation App")
+st.write("K-Means Clustering on E-commerce Data")
+st.write(data.head())
+k = st.slider("Select number of clusters", 2, 10, 4)
+kmeans = KMeans(n_clusters=k, random_state=42)
+st.subheader("Cluster Insights")
+st.write(cluster_analysis)
 
 sns.pairplot(data)
 plt.show()
