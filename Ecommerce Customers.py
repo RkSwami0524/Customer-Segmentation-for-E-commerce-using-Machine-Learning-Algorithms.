@@ -110,41 +110,71 @@ data = data.drop(['Email', 'Address', 'Avatar'], axis=1)
 
 # ## Exploratory Data Analysis (EDA)
 import streamlit as st
-from sklearn.cluster import KMeans
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+# Title
 st.title("Customer Segmentation App")
 
-# Slider (ONLY ONCE)
-k = st.slider("Select number of clusters", 2, 10, 4)
+# Load Data
+data = pd.read_csv("Ecommerce Customers.csv")
+
+# Drop unnecessary columns
+data = data.drop(['Email', 'Address', 'Avatar'], axis=1)
+
+# Feature selection
+X = data[['Avg. Session Length', 'Time on App', 'Time on Website',
+          'Length of Membership', 'Yearly Amount Spent']]
+
+# Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Sidebar for cleaner UI
+st.sidebar.header("Settings")
+k = st.sidebar.slider("Select number of clusters", 2, 10, 4)
 
 # Apply KMeans
-kmeans = KMeans(n_clusters=k, random_state=42)
+kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
 y_kmeans = kmeans.fit_predict(X_scaled)
 
 # Add cluster column
 data['Cluster'] = y_kmeans
 
-# Visualization
+# ---------------- Visualization ----------------
 st.subheader("Cluster Visualization")
 
 fig, ax = plt.subplots()
-ax.scatter(data['Time on App'], data['Yearly Amount Spent'],
-           c=data['Cluster'], cmap='viridis')
+scatter = ax.scatter(
+    data['Time on App'],
+    data['Yearly Amount Spent'],
+    c=data['Cluster'],
+    cmap='viridis'
+)
+
+ax.set_xlabel("Time on App")
+ax.set_ylabel("Yearly Amount Spent")
+ax.set_title("Customer Segments")
 
 st.pyplot(fig)
 
-# Cluster Insights
+# ---------------- Insights ----------------
 st.subheader("Cluster Insights")
+
 cluster_analysis = data.groupby('Cluster').mean()
-st.write(cluster_analysis)
+st.dataframe(cluster_analysis)
 
-# Pairplot (fixed)
+# ---------------- Optional Pairplot ----------------
 st.subheader("Data Relationships")
-pairplot_fig = sns.pairplot(data)
-st.pyplot(pairplot_fig)
 
+if st.checkbox("Show Pairplot (may take time)"):
+    pairplot_fig = sns.pairplot(data, hue='Cluster')
+    st.pyplot(pairplot_fig)
 # ## Explanation
 # - Shows relationships between features
 # - Helps understand patterns
