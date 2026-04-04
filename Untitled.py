@@ -1,204 +1,187 @@
-# Generated from: Untitled.ipynb
-# Converted at: 2026-04-04T17:43:18.995Z
-# Next step (optional): refactor into modules & generate tests with RunCell
-# Quick start: pip install runcell
-
+import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# ML models
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import mean_absolute_error
-
-# Evaluation
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-
-# Profiling
-from ydata_profiling import ProfileReport
+from sklearn.metrics import accuracy_score, mean_absolute_error
 
 import warnings
 warnings.filterwarnings('ignore')
 
-df = pd.read_csv("Ecommerce Customers.csv")
-df.head()
+st.set_page_config(page_title="Ecommerce ML App", layout="wide")
 
-df.info()
-df.describe()
-df.isnull().sum()
+st.title("🛍️ Ecommerce Customer Analysis App")
 
-plt.figure(figsize=(8,5))
-plt.plot(df['Time on Website'], df['Yearly Amount Spent'])
-plt.title("Time on Website vs Yearly Amount Spent")
-plt.xlabel("Time on Website")
-plt.ylabel("Yearly Amount Spent")
-plt.show()
+# -----------------------------
+# File Upload
+# -----------------------------
+uploaded_file = st.file_uploader("Upload Ecommerce CSV file", type=["csv"])
 
-plt.figure(figsize=(8,5))
-plt.scatter(df['Time on App'], df['Yearly Amount Spent'])
-plt.title("Time on App vs Spending")
-plt.xlabel("Time on App")
-plt.ylabel("Yearly Amount Spent")
-plt.show()
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
 
-plt.figure(figsize=(8,5))
-plt.hist(df['Yearly Amount Spent'], bins=30)
-plt.title("Distribution of Yearly Amount Spent")
-plt.xlabel("Spending")
-plt.ylabel("Frequency")
-plt.show()
+    st.subheader("📊 Raw Data")
+    st.dataframe(df.head())
 
-sns.pairplot(df)
-plt.show()
+    # -----------------------------
+    # Basic Info
+    # -----------------------------
+    st.subheader("📈 Data Overview")
+    col1, col2 = st.columns(2)
 
-profile = ProfileReport(df)
-profile.to_file("Ecommerce_Report.html")
+    with col1:
+        st.write("Shape:", df.shape)
+        st.write("Missing Values:")
+        st.write(df.isnull().sum())
 
-plt.figure(figsize=(10,6))
-sns.boxplot(data=df)
-plt.xticks(rotation=90)
-plt.show()
+    with col2:
+        st.write("Statistics:")
+        st.dataframe(df.describe())
 
-le = LabelEncoder()
-df['Email'] = le.fit_transform(df['Email'])
-df['Address'] = le.fit_transform(df['Address'])
-df['Avatar'] = le.fit_transform(df['Avatar'])
+    # -----------------------------
+    # EDA Section
+    # -----------------------------
+    st.subheader("📊 Exploratory Data Analysis")
 
-scaler = StandardScaler()
-scaled_data = scaler.fit_transform(df)
+    if 'Time on Website' in df.columns and 'Yearly Amount Spent' in df.columns:
+        fig, ax = plt.subplots()
+        ax.plot(df['Time on Website'], df['Yearly Amount Spent'])
+        ax.set_title("Time on Website vs Spending")
+        st.pyplot(fig)
 
-wcss = []
-for i in range(1,11):
-    kmeans = KMeans(n_clusters=i)
-    kmeans.fit(scaled_data)
-    wcss.append(kmeans.inertia_)
+    if 'Time on App' in df.columns:
+        fig, ax = plt.subplots()
+        ax.scatter(df['Time on App'], df['Yearly Amount Spent'])
+        ax.set_title("Time on App vs Spending")
+        st.pyplot(fig)
 
-plt.plot(range(1,11), wcss)
-plt.title("Elbow Method")
-plt.xlabel("Clusters")
-plt.ylabel("WCSS")
-plt.show()
+    fig, ax = plt.subplots()
+    ax.hist(df['Yearly Amount Spent'], bins=30)
+    ax.set_title("Spending Distribution")
+    st.pyplot(fig)
 
-kmeans = KMeans(n_clusters=5)
-df['Cluster'] = kmeans.fit_predict(scaled_data)
+    st.write("Pairplot (sampled for performance)")
+    sns_plot = sns.pairplot(df.sample(min(200, len(df))))
+    st.pyplot(sns_plot)
 
-sns.scatterplot(x=df.iloc[:,3], y=df.iloc[:,4], hue=df['Cluster'])
-plt.show()
+    # -----------------------------
+    # Encoding
+    # -----------------------------
+    df_encoded = df.copy()
+    le = LabelEncoder()
 
-X = df.drop(['Yearly Amount Spent','Cluster'], axis=1)
-y = df['Yearly Amount Spent']
+    for col in df_encoded.select_dtypes(include='object').columns:
+        df_encoded[col] = le.fit_transform(df_encoded[col])
 
-X
+    # -----------------------------
+    # Scaling
+    # -----------------------------
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(df_encoded)
 
-y
+    # -----------------------------
+    # KMeans Clustering
+    # -----------------------------
+    st.subheader("🔍 KMeans Clustering")
 
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.3)
+    wcss = []
+    for i in range(1, 11):
+        kmeans = KMeans(n_clusters=i, random_state=42)
+        kmeans.fit(scaled_data)
+        wcss.append(kmeans.inertia_)
 
-X_train
+    fig, ax = plt.subplots()
+    ax.plot(range(1, 11), wcss, marker='o')
+    ax.set_title("Elbow Method")
+    st.pyplot(fig)
 
-X_test
+    k = st.slider("Select number of clusters", 2, 10, 5)
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    df_encoded['Cluster'] = kmeans.fit_predict(scaled_data)
 
-lr = LinearRegression()
-lr.fit(X_train, y_train)
+    st.write("Clustered Data")
+    st.dataframe(df_encoded.head())
 
-pred = lr.predict(X_test)
-print("Score:", lr.score(X_test, y_test))
+    # -----------------------------
+    # Regression Model
+    # -----------------------------
+    st.subheader("📈 Linear Regression")
 
-y_pred = lr.predict(X_test)
+    X_reg = df_encoded.drop(['Yearly Amount Spent', 'Cluster'], axis=1)
+    y_reg = df_encoded['Yearly Amount Spent']
 
-#mae = mean_absolute_error(y_test,y_pred)
+    X_train, X_test, y_train, y_test = train_test_split(X_reg, y_reg, test_size=0.3, random_state=42)
 
-#mae
+    lr = LinearRegression()
+    lr.fit(X_train, y_train)
 
-X = df.drop(['Cluster'], axis=1)
-y = df['Cluster']
+    y_pred = lr.predict(X_test)
 
-from sklearn.model_selection import train_test_split
+    st.write("R² Score:", lr.score(X_test, y_test))
+    st.write("MAE:", mean_absolute_error(y_test, y_pred))
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    # -----------------------------
+    # Classification Models
+    # -----------------------------
+    st.subheader("🤖 Classification (Cluster Prediction)")
 
-from sklearn.tree import DecisionTreeClassifier
+    X_cls = df_encoded.drop(['Cluster'], axis=1)
+    y_cls = df_encoded['Cluster']
 
-dt = DecisionTreeClassifier(max_depth=5)
-dt.fit(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(X_cls, y_cls, test_size=0.3, random_state=42)
 
-pred_dt = dt.predict(X_test)
+    # Decision Tree
+    dt = DecisionTreeClassifier(max_depth=5)
+    dt.fit(X_train, y_train)
+    pred_dt = dt.predict(X_test)
 
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+    # Random Forest
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf.fit(X_train, y_train)
+    pred_rf = rf.predict(X_test)
 
-print("Accuracy:", accuracy_score(y_test, pred_dt))
-print(confusion_matrix(y_test, pred_dt))
-print(classification_report(y_test, pred_dt))
+    dt_acc = accuracy_score(y_test, pred_dt)
+    rf_acc = accuracy_score(y_test, pred_rf)
 
-from sklearn.tree import plot_tree
+    st.write("Decision Tree Accuracy:", dt_acc)
+    st.write("Random Forest Accuracy:", rf_acc)
 
-plt.figure(figsize=(20,10))
-plot_tree(dt, filled=True, feature_names=X.columns)
-plt.show()
+    # -----------------------------
+    # Model Comparison
+    # -----------------------------
+    fig, ax = plt.subplots()
+    ax.bar(['Decision Tree', 'Random Forest'], [dt_acc, rf_acc])
+    ax.set_title("Model Comparison")
+    st.pyplot(fig)
 
-from sklearn.ensemble import RandomForestClassifier
-rf = RandomForestClassifier(n_estimators=100, random_state=42)
-rf.fit(X_train, y_train)
+    # -----------------------------
+    # Feature Importance
+    # -----------------------------
+    st.subheader("📊 Feature Importance (Random Forest)")
 
-pred_rf = rf.predict(X_test)
+    importances = rf.feature_importances_
+    features = X_cls.columns
 
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+    fig, ax = plt.subplots()
+    ax.barh(features, importances)
+    ax.set_title("Feature Importance")
+    st.pyplot(fig)
 
-print("Random Forest Accuracy:", accuracy_score(y_test, pred_rf))
-print(confusion_matrix(y_test, pred_rf))
-print(classification_report(y_test, pred_rf))
+    # -----------------------------
+    # Tree Visualization
+    # -----------------------------
+    st.subheader("🌳 Decision Tree Visualization")
 
-importances = rf.feature_importances_
-features = X.columns
+    fig = plt.figure(figsize=(20,10))
+    plot_tree(dt, filled=True, feature_names=X_cls.columns)
+    st.pyplot(fig)
 
-plt.figure(figsize=(8,5))
-plt.barh(features, importances)
-plt.title("Feature Importance - Random Forest")
-plt.show()
-
-from sklearn.tree import plot_tree
-
-plt.figure(figsize=(20,10))
-plot_tree(rf.estimators_[0], filled=True, feature_names=X.columns)
-plt.show()
-
-dt_acc = accuracy_score(y_test, pred_dt)
-rf_acc = accuracy_score(y_test, pred_rf)
-
-models = ['Decision Tree', 'Random Forest']
-scores = [dt_acc, rf_acc]
-
-plt.figure(figsize=(6,4))
-plt.bar(models, scores)
-plt.title("Model Comparison")
-plt.ylabel("Accuracy")
-plt.show()
-
-plt.figure(figsize=(8,5))
-sns.scatterplot(
-    x=X_test['Time on App'], 
-    y=X_test['Yearly Amount Spent'], 
-    hue=pred_rf
-)
-plt.title("Random Forest Predictions (Test Data)")
-plt.show()
-
-importances = rf.feature_importances_
-features = X.columns
-
-plt.barh(features, importances)
-plt.title("Feature Importance")
-plt.show()
-
-plt.figure(figsize=(15,10))
-plot_tree(rf.estimators_[0], filled=True)
-plt.show()
-
-print("Decision Tree Accuracy:", accuracy_score(y_test, pred_dt))
-print("Random Forest Accuracy:", accuracy_score(y_test, pred_rf))
+else:
+    st.info("👆 Upload a CSV file to get started")
